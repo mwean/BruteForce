@@ -2,61 +2,74 @@
 # MattWean.com
 
 class BruteForce
-  attr_accessor :cracker, :password
-  attr_reader :time, :charset, :length, :combinations
+  attr_accessor :attack_type, :password, :charset, :length, :combinations, :speed
+  attr_reader :time
   # Length of a year in seconds
   @@year = 31556926
   def initialize(params)
     # You can pass any of these parameters as a hash when you instantiate a BruteForce object
-    
-    @cracker = params[:cracker]
+
+    @attack_type = params[:attack_type]
     # Choose any of the pre-defined speeds below
-    
+    user_gen = params[:user_gen] 
+    # Boolean to include decrease in password strength due to predictability of user-generated passwords
+    @combinations = params[:combinations]
     @password = params[:password]
-    @speed = params[:speed] 
+    @speed = params[:speed]
     # You can specify your own attempts/second value
     
-    user_gen = params[:user_gen] 
-    # Boolean to include 4x decrease in password strength due to predictability of user-generated passwords
-    
-    @speed ||= 200000000
-    # Default speed if no speed or cracker chosen
-    
-    case @cracker
-    when :Extreme # Multi-GPU or distributed
-      @speed = 10000000000
-    when :GPU # GPU-based desktop attack
-      @speed = 3000000000
-    when :desktop # ~Core i7
+    if @attack_type
+      @attack_type = @attack_type.to_sym
+      case @attack_type
+      when :Extreme # Multi-GPU or distributed
+        @speed = 10000000000
+      when :GPU # GPU-based desktop attack
+        @speed = 3000000000
+      when :desktop # ~Core i7
+        @speed = 200000000
+      when :online
+        @speed = 100
+      end
+    else  # Default speed if no speed or cracker chosen
+      @attack_type = :desktop
       @speed = 200000000
-    when :online
-      @speed = 100
     end
-    
-    @charset = 0
-    # Lowercase
-    @charset += 26 if @password.match(/[a-z]/)
-    # Uppercase
-    @charset += 26 if @password.match(/[A-Z]/)
-    # Numbers
-    @charset += 10 if @password.match(/\d+/)
-    # Symbols
-    @charset += 16 if @password.match(/[.,,,!,@,#,$,%,^,&,*,?,_,~,-,(,)]/)
-    
-    # Ruby 1.8.7 doesn't support Unicode very well, so I left these out for now
-    # Unicode Latin characters
-    # @charset += 94 if @password.match(/[^\u0080-\u00FF]+/)
-    # @charset += 128 if @password.match(/[^\u0100-\u017F]+/)
-    # @charset += 208 if @password.match(/[^\u0180-\u024F]+/)
-    # @charset += 32 if @password.match(/[^\u2C60-\u2C7F]+/)
-    # @charset += 29 if @password.match(/[^\uA720-\uA7FF]+/)
-    # # Unicode Cyrillic characters
-    # @charset += 40 if @password.match(/[^\u0500-\u052F]+/)
-    # @charset += 74 if @password.match(/[^\uA640-\uA69F]+/)
 
-    @length = @password.length
-    @combinations = @charset**@length
-    @combinations /= 4 if user_gen
+    if @password
+      @charset = 0
+      # Lowercase
+      @charset += 26 if @password.match(/[a-z]/)
+      # Uppercase
+      @charset += 26 if @password.match(/[A-Z]/)
+      # Numbers
+      @charset += 10 if @password.match(/\d+/)
+      # Symbols
+      @charset += 16 if @password.match(/[.,,,!,@,#,$,%,^,&,*,?,_,~,-,(,)]/)
+
+      # Ruby 1.8.7 doesn't support Unicode very well, so I left these out for now
+      # Unicode Latin characters
+      # @charset += 94 if @password.match(/[^\u0080-\u00FF]+/)
+      # @charset += 128 if @password.match(/[^\u0100-\u017F]+/)
+      # @charset += 208 if @password.match(/[^\u0180-\u024F]+/)
+      # @charset += 32 if @password.match(/[^\u2C60-\u2C7F]+/)
+      # @charset += 29 if @password.match(/[^\uA720-\uA7FF]+/)
+      # # Unicode Cyrillic characters
+      # @charset += 40 if @password.match(/[^\u0500-\u052F]+/)
+      # @charset += 74 if @password.match(/[^\uA640-\uA69F]+/)
+
+      @length = @password.length
+      @combinations = @charset**@length
+    end
+    if user_gen == "true"
+      case 
+      when @length <= 8
+        @combinations /= ((@length*6.5546)/(2*@length+2))
+      when @length <= 20
+        @combinations /= ((@length*6.5546)/(1.5*@length+6))
+      else
+        @combinations /= ((@length*6.5546)/(@length+16))
+      end
+    end
     @raw_time = @combinations/@speed.to_f
   end
 
@@ -100,7 +113,7 @@ class BruteForce
       @@year*10**27,
       @@year*10**30
     ]
-    
+
     period = "second"
     if @raw_time <= 1
       @time = "#{@raw_time} seconds"
@@ -136,6 +149,6 @@ class BruteForce
   def chance_of_failure(years)
     chance = ((years*@@year*@speed)/@combinations.to_f)*100
     chance = 100 if chance > 100
-    sprintf("%.2f%", chance)
+    return sprintf("%.2f%", chance)
   end
 end
